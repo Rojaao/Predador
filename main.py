@@ -1,21 +1,17 @@
 import streamlit as st
-import threading
 from deriv_ws import iniciar_conexao
 
-st.set_page_config(page_title="Robô Predador de Padrões", layout="centered")
-log_box = st.empty()
+def main():
+    st.set_page_config(page_title="Robô Predador de Padrões", layout="centered")
+    st.title("🤖 Robô Predador de Padrões")
 
-st.title("🤖 Robô Predador de Padrões")
-token = st.text_input("🔑 Insira seu Token da Deriv", type="password")
-martingale = st.checkbox("🎯 Ativar Martingale")
-stake = st.number_input("💵 Stake Inicial", min_value=0.35, value=1.0, step=0.1)
-estrategia = st.selectbox("📈 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
+    token = st.text_input("🔑 Insira seu token da Deriv", type="password")
+    estrategia = st.selectbox("🎯 Escolha a estratégia", ["Predador de Padrões", "Identificador de Padrão"])
+    stake = st.number_input("💰 Stake inicial", min_value=0.35, value=1.00)
+    martingale = st.checkbox("📈 Ativar Martingale")
 
-start = st.button("🚀 Iniciar Robô")
+    iniciar = st.button("🚀 Iniciar Robô")
 
-def atualizar_interface(msg):
-    historico = log_box.text_area("📜 LOG DE EVENTOS", value=msg, height=300)
-
-if start and token:
-    threading.Thread(target=iniciar_conexao, args=(token, stake, martingale, estrategia, atualizar_interface)).start()
-    atualizar_interface("🔌 Iniciando conexão com a Deriv...")
+    if iniciar and token:
+        st.success("🔌 Iniciando conexão com a Deriv...")
+        iniciar_conexao(token, stake, martingale, estrategia)

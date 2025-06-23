@@ -1,16 +1,23 @@
-
 import websocket
 import json
 import threading
 
-def iniciar_conexao(token, atualizar_interface, estrategia):
+def iniciar_conexao(token, stake, estrategia_func, atualizar_interface):
     def on_open(ws):
-        ws.send(json.dumps({"authorize": token}))
         atualizar_interface("✅ Conexão estabelecida com a Deriv!")
+        auth_data = {
+            "authorize": token
+        }
+        ws.send(json.dumps(auth_data))
 
     def on_message(ws, message):
         data = json.loads(message)
-        atualizar_interface(f"📩 Mensagem recebida: {data}")
+        if 'msg_type' in data:
+            if data['msg_type'] == 'authorize':
+                atualizar_interface("🔐 Autorizado com sucesso!")
+                estrategia_func(ws, stake, atualizar_interface)
+            elif data['msg_type'] == 'error':
+                atualizar_interface(f"❌ Erro da API: {data['error']['message']}")
 
     def on_error(ws, error):
         atualizar_interface(f"❌ Erro: {error}")
@@ -28,4 +35,5 @@ def iniciar_conexao(token, atualizar_interface, estrategia):
         )
         ws_app.run_forever()
 
-    threading.Thread(target=run).start()
+    thread = threading.Thread(target=run)
+    thread.start()

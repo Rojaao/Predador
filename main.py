@@ -1,3 +1,4 @@
+
 import streamlit as st
 from deriv_ws import iniciar_conexao
 
@@ -5,13 +6,13 @@ def main():
     st.set_page_config(page_title="Robô Predador de Padrões", layout="centered")
     st.title("🤖 Robô Predador de Padrões")
 
-    token = st.text_input("🔑 Insira seu token da Deriv", type="password")
-    estrategia = st.selectbox("🎯 Escolha a estratégia", ["Predador de Padrões", "Identificador de Padrão"])
-    stake = st.number_input("💰 Stake inicial", min_value=0.35, value=1.00)
-    martingale = st.checkbox("📈 Ativar Martingale")
+    token = st.text_input("🔑 Token da API Deriv", type="password")
+    estrategia = st.selectbox("🎯 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
+    stake = st.number_input("💰 Stake Inicial", value=1.0)
+    martingale = st.checkbox("🎲 Ativar Martingale", value=True)
 
-    iniciar = st.button("🚀 Iniciar Robô")
+    placeholder_log = st.empty()
 
-    if iniciar and token:
-        st.success("🔌 Iniciando conexão com a Deriv...")
-        iniciar_conexao(token, stake, martingale, estrategia)
+    if st.button("🚀 Iniciar Robô"):
+        placeholder_log.markdown("```text\nIniciando conexão com a Deriv...\n```")
+        iniciar_conexao(token, estrategia, stake, martingale, placeholder_log)

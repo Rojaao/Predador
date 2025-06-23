@@ -5,6 +5,7 @@ def main():
     st.set_page_config(page_title="Predador de Padrões - por Rogger", layout="centered")
     st.title("🤖 Predador de Padrões - por Rogger")
 
+    strategy = st.selectbox("Selecione a estratégia", ["Predador de Padrões", "Identificador de Padrão"])
     token = st.text_input("🔑 Token Deriv (Real ou Demo)")
     stake = st.number_input("💵 Stake Inicial", min_value=0.35, value=1.00)
     martingale = st.checkbox("🔁 Ativar Martingale", value=True)
@@ -15,13 +16,17 @@ def main():
     status_box = st.empty()
     log_box = st.empty()
 
-    def atualizar_interface(msg):
-        historico = log_box.text_area("📜 LOG DE EVENTOS", value=msg, height=300)
-        status_box.success("✅ Robô Rodando...")
-
     if st.button("🚀 Iniciar Robô"):
-        status_box.info("⏳ Iniciando conexão com Deriv...")
-        iniciar_conexao(token, stake, martingale, fator, stop_loss, stop_gain, atualizar_interface)
+        if not token:
+            st.error("Insira token válido.")
+        else:
+            status_box.info("⏳ Iniciando conexão...")
+            strat_key = 'predador' if strategy=="Predador de Padrões" else 'identificador'
+            iniciar_conexao(token, stake, martingale, fator, stop_loss, stop_gain, strat_key, lambda msg: log_box.markdown(f"```text\n{msg}\n```"))
+
+    if st.button("🔄 Atualizar Logs"):
+        # Apenas rerun para exibir logs empilhados
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()

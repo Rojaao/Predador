@@ -9,18 +9,18 @@ def atualizar_interface(msg):
         log_box.markdown("```text\n{}\n```".format(msg))
 
 def main():
-    global log_box
     st.set_page_config(page_title="Robô Predador de Padrões", layout="centered")
-    st.title("🤖 Robô Predador de Padrões")
+    st.title("🤖 Robô Predador de Padrões - Deriv.com")
 
-    token = st.text_input("🔑 Insira seu Token da Deriv", type="password")
-    stake = st.number_input("💰 Stake inicial", min_value=0.35, value=1.00)
-    martingale = st.checkbox("🎯 Ativar Martingale")
-    estrategia = st.selectbox("📊 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
-    iniciar = st.button("🚀 Iniciar Robô")
+    st.markdown("Escolha a estratégia e configure os parâmetros abaixo.")
 
+    token = st.text_input("🎯 Token da Deriv", type="password")
+    estrategia = st.selectbox("📌 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
+    botao_iniciar = st.button("🚀 Iniciar Robô")
+
+    global log_box
     log_box = st.empty()
 
-    if iniciar and token:
+    if botao_iniciar and token:
         atualizar_interface("🔌 Iniciando conexão com a Deriv...")
-        iniciar_conexao(token, stake, martingale, estrategia, atualizar_interface)
+        iniciar_conexao(token, estrategia, atualizar_interface)

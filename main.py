@@ -1,32 +1,31 @@
 import streamlit as st
+import threading
 from deriv_ws import iniciar_conexao
 
+log_box = st.empty()
+
+def atualizar_interface(msg):
+    if 'log_text' not in st.session_state:
+        st.session_state['log_text'] = ""
+    st.session_state['log_text'] += f"{msg}\n"
+    log_box.text_area("📜 LOG DE EVENTOS", value=st.session_state['log_text'], height=300)
+
 def main():
-    st.set_page_config(page_title="Predador de Padrões - por Rogger", layout="centered")
-    st.title("🤖 Predador de Padrões - por Rogger")
+    st.set_page_config(page_title="Predador de Padrões", layout="centered")
+    st.title("🤖 Robô Predador de Padrões")
 
-    strategy = st.selectbox("Selecione a estratégia", ["Predador de Padrões", "Identificador de Padrão"])
-    token = st.text_input("🔑 Token Deriv (Real ou Demo)")
-    stake = st.number_input("💵 Stake Inicial", min_value=0.35, value=1.00)
-    martingale = st.checkbox("🔁 Ativar Martingale", value=True)
-    fator = st.number_input("📈 Fator Martingale", value=2.0)
-    stop_loss = st.number_input("🛑 Stop Loss", value=20.0)
-    stop_gain = st.number_input("🎯 Stop Gain", value=50.0)
-
-    status_box = st.empty()
-    log_box = st.empty()
+    token = st.text_input("🎯 Token da API Deriv")
+    stake = st.number_input("💰 Stake inicial", min_value=0.35, value=1.00, step=0.01)
+    usar_martingale = st.checkbox("📈 Ativar Martingale", value=True)
+    estrategia = st.selectbox("🎯 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
 
     if st.button("🚀 Iniciar Robô"):
-        if not token:
-            st.error("Insira token válido.")
+        if token:
+            threading.Thread(
+                target=iniciar_conexao,
+                args=(token, stake, usar_martingale, estrategia, atualizar_interface),
+                daemon=True
+            ).start()
+            atualizar_interface("🔌 Iniciando conexão com a Deriv...")
         else:
-            status_box.info("⏳ Iniciando conexão...")
-            strat_key = 'predador' if strategy=="Predador de Padrões" else 'identificador'
-            iniciar_conexao(token, stake, martingale, fator, stop_loss, stop_gain, strat_key, lambda msg: log_box.markdown(f"```text\n{msg}\n```"))
-
-    if st.button("🔄 Atualizar Logs"):
-        # Apenas rerun para exibir logs empilhados
-        st.experimental_rerun()
-
-if __name__ == "__main__":
-    main()
+            st.warning("⚠️ Insira um token válido.")

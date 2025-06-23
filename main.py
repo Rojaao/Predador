@@ -1,31 +1,31 @@
+
 import streamlit as st
-import threading
 from deriv_ws import iniciar_conexao
+from estrategias import predador_de_padroes, identificador_de_padrao
+
+estrategias = {
+    "Predador de Padrões": predador_de_padroes,
+    "Identificador de Padrão": identificador_de_padrao
+}
 
 log_box = st.empty()
 
 def atualizar_interface(msg):
-    if 'log_text' not in st.session_state:
-        st.session_state['log_text'] = ""
-    st.session_state['log_text'] += f"{msg}\n"
-    log_box.text_area("📜 LOG DE EVENTOS", value=st.session_state['log_text'], height=300)
+    log_box.text_area("📜 LOG DE EVENTOS", value=msg, height=300)
 
 def main():
-    st.set_page_config(page_title="Predador de Padrões", layout="centered")
+    st.set_page_config(page_title="Robô Deriv: Estratégias de Padrões", layout="centered")
     st.title("🤖 Robô Predador de Padrões")
+    st.markdown("Conecte-se com seu token e escolha a estratégia para começar.")
 
-    token = st.text_input("🎯 Token da API Deriv")
-    stake = st.number_input("💰 Stake inicial", min_value=0.35, value=1.00, step=0.01)
-    usar_martingale = st.checkbox("📈 Ativar Martingale", value=True)
-    estrategia = st.selectbox("🎯 Estratégia", ["Predador de Padrões", "Identificador de Padrão"])
+    token = st.text_input("🎯 Token da Deriv", type="password")
+    stake = st.number_input("💰 Stake Inicial", min_value=0.35, value=1.00)
+    martingale = st.checkbox("📈 Ativar Martingale", value=True)
+    fator_martingale = st.number_input("⚙️ Fator de Martingale", min_value=1.0, value=2.0)
+    estrategia_escolhida = st.selectbox("🎯 Estratégia:", list(estrategias.keys()))
+    botao = st.button("🚀 Iniciar Robô")
 
-    if st.button("🚀 Iniciar Robô"):
-        if token:
-            threading.Thread(
-                target=iniciar_conexao,
-                args=(token, stake, usar_martingale, estrategia, atualizar_interface),
-                daemon=True
-            ).start()
-            atualizar_interface("🔌 Iniciando conexão com a Deriv...")
-        else:
-            st.warning("⚠️ Insira um token válido.")
+    if botao and token:
+        atualizar_interface("🔌 Iniciando conexão com a Deriv...")
+        funcao_estrategia = estrategias[estrategia_escolhida]
+        iniciar_conexao(token, stake, martingale, fator_martingale, funcao_estrategia, atualizar_interface)

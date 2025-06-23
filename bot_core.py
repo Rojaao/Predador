@@ -1,31 +1,57 @@
 import websocket
 import json
 import time
-import threading
 
-# Função principal
 def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analise_ticks):
     saldo = 0.0
     perdas_consecutivas = 0
-    ws_url = "wss://ws.deriv.com/websockets/v3?app_id=1089"
-    running = True
+    # Endpoint corrigido para Deriv WebSocket
+    ws_url = "wss://ws.binaryws.com/websockets/v3?app_id=1089"
+
+    def on_open(ws):
+        print("🟢 Conectando ao WebSocket da Deriv...")
+        auth = {"authorize": token}
+        ws.send(json.dumps(auth))
 
     def on_message(ws, message):
-        nonlocal saldo, perdas_consecutivas, running
+        nonlocal saldo, perdas_consecutivas
         data = json.loads(message)
+        # Debug de mensagem recebida
+        print("📩 Mensagem recebida:", data.get("msg_type", data))
 
-        # Processa msg_type
-        if data.get('msg_type') == 'authorize':
+        if data.get("msg_type") == "authorize":
+            if data.get("authorize", {}).get("error"):
+                print("❌ Autorização falhou:", data["authorize"]["error"]["message"])
+                ws.close()
+                return
             print("✅ Autorizado com sucesso.")
+            # Solicita ticks iniciais
             requisitar_ticks(ws, analise_ticks)
-        elif data.get('msg_type') == 'history':
-            # Extrai últimos digits
-            ticks = data['history']['prices'][-analise_ticks:]
-            ultimos_digitos = [int(t[-1]) for t in ticks]
-            print(f"📊 Últimos dígitos: {ultimos_digitos}")
+
+        elif data.get("msg_type") == "history":
+            # Extrai últimos ticks
+            prices = data.get("history", {}).get("prices", [])
+            if not prices:
+                print("⚠️ Histórico vazio recebido, tentando novamente...")
+                time.sleep(delay)
+                requisitar_ticks(ws, analise_ticks)
+                return
+            # Cada item de prices pode ser string ou dict, dependendo da resposta
+            # Se for string, último caractere é o dígito final
+            ultimos_digitos = []
+            for t in prices[-analise_ticks:]:
+                # t pode ser número ou string: convertendo para str
+                s = str(t)
+                # último caractere
+                try:
+                    d = int(s[-1])
+                except:
+                    continue
+                ultimos_digitos.append(d)
+            print(f"📊 Últimos dígitos ({len(ultimos_digitos)}): {ultimos_digitos}")
             baixo_4 = sum(1 for d in ultimos_digitos if d < 4)
             print(f"🧮 Dígitos <4: {baixo_4} de {analise_ticks}")
-            # Se >= 60%, aposta Over 3
+            # Critério: se ≥ 60% abaixo de 4, entra Over 3
             if baixo_4 >= int(analise_ticks * 0.6):
                 contrato = {
                     "buy": 1,
@@ -49,15 +75,19 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                 print("⏸️ Padrão não favorável. Aguardando próximo ciclo...")
                 time.sleep(delay)
                 requisitar_ticks(ws, analise_ticks)
-        elif data.get('msg_type') == 'buy':
+
+        elif data.get("msg_type") == "buy":
             print("🟡 Entrada enviada. Aguardando resultado...")
-        elif data.get('msg_type') == 'proposal_open_contract':
-            if data['proposal_open_contract']['is_sold']:
-                profit = float(data['proposal_open_contract']['profit'])
+
+        elif data.get("msg_type") == "proposal_open_contract":
+            # Verifica se a proposta foi vendida (fechada)
+            porc = data.get("proposal_open_contract", {})
+            if porc.get("is_sold"):
+                profit = float(porc.get("profit", 0))
                 resultado = "WIN" if profit > 0 else "LOSS"
                 saldo += profit
                 print(f"📈 Resultado: {resultado} | Lucro: {profit:.2f} | Saldo Total: {saldo:.2f}")
-                # Controle de perdas
+                # Controle de perdas consecutivas
                 if resultado == "LOSS":
                     perdas_consecutivas += 1
                 else:
@@ -73,16 +103,14 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                     return
                 time.sleep(delay)
                 requisitar_ticks(ws, analise_ticks)
-        # Outros msg_type podem ser ignorados
 
     def on_error(ws, error):
-        print(f"❌ Erro: {error}")
+        print(f"❌ Erro na conexão/WebSocket: {error}")
+        # Aqui você pode implementar reconexão ou encerrar
+        ws.close()
+
     def on_close(ws, close_status_code, close_msg):
-        print("🔌 Conexão encerrada.")
-    def on_open(ws):
-        print("🟢 Conectando e autenticando...")
-        auth = {"authorize": token}
-        ws.send(json.dumps(auth))
+        print("🔌 Conexão encerrada com a Deriv.")
 
     def requisitar_ticks(ws, analise_ticks):
         msg = {
@@ -103,4 +131,8 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
         on_error=on_error,
         on_close=on_close
     )
-    ws.run_forever()
+    try:
+        ws.run_forever()
+    except Exception as e:
+        print("❌ Exceção em run_forever:", e)
+        ws.close()

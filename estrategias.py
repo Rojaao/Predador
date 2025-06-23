@@ -1,33 +1,17 @@
-def predador_de_padroes(digitos, ws, stake, martingale, fator, log):
-    qtd = sum(1 for d in digitos if d < 4)
-    log.markdown(f"```text\n📊 Últimos dígitos: {digitos}\nDígitos <4: {qtd}/10\n```")
-    if qtd >= 6:
-        ws.send(json.dumps({
-            "buy": 1,
-            "price": stake,
-            "parameters": {
-                "contract_type": "CALL",
-                "symbol": "R_100",
-                "duration": 1,
-                "duration_unit": "t",
-                "barrier": "3",
-                "basis": "stake"
-            }
-        }))
 
-def identificador_de_padrao(digitos, ws, stake, martingale, fator, log):
-    qtd = sum(1 for d in digitos if d < 4)
-    log.markdown(f"```text\n🧠 Análise Identificador: {digitos} <4: {qtd}\n```")
-    if qtd >= 5:
-        ws.send(json.dumps({
-            "buy": 1,
-            "price": stake,
-            "parameters": {
-                "contract_type": "CALL",
-                "symbol": "R_100",
-                "duration": 1,
-                "duration_unit": "t",
-                "barrier": "3",
-                "basis": "stake"
-            }
-        }))
+import random
+
+def predador_de_padroes(digitos):
+    abaixo_de_4 = [d for d in digitos if d < 4]
+    if len(abaixo_de_4) >= 6:
+        return "OVER"
+    return None
+
+def identificador_de_padrao(coletas):
+    total_digitos = sum(len(c) for c in coletas)
+    total_abaixo_de_4 = sum(d < 4 for coleta in coletas for d in coleta)
+    passou_50 = total_abaixo_de_4 / total_digitos > 0.5
+    algum_6oumais = any(sum(d < 4 for d in coleta) >= 6 for coleta in coletas)
+    if passou_50 and algum_6oumais:
+        return "OVER"
+    return None

@@ -1,1 +1,2 @@
-# placeholder
+def main():
+    # placeholder

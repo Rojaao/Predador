@@ -15,7 +15,7 @@ def main():
     placeholder_log = st.empty()
 
     def atualizar_interface(msg):
-        placeholder_log.markdown(f"```text\n{msg}\n```")
+        placeholder_log.markdown("```text\n{}\n```".format(msg))
 
     if st.button("🚀 Iniciar Robô"):
         st.success("Robô iniciado!")

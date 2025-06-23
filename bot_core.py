@@ -24,10 +24,14 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
 
         if 'msg_type' in data:
             if data['msg_type'] == 'history' and not contrato_em_andamento:
+                print("📊 Ticks recebidos. Iniciando análise...")
                 ultimos_digitos = [int(str(tick)[-1]) for tick in data['history']['prices'][-analise_ticks:]]
+                print(f"🎯 Últimos dígitos analisados: {ultimos_digitos}")
                 baixo_4 = sum(1 for d in ultimos_digitos if d < 4)
+                print(f"🧮 Dígitos abaixo de 4: {baixo_4} de {analise_ticks}")
 
                 if baixo_4 >= int(analise_ticks * 0.6):
+                    print("✅ Padrão detectado! Enviando entrada...")
                     contrato_em_andamento = True
                     contrato = {
                         "buy": 1,
@@ -46,6 +50,10 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                         "req_id": 1
                     }
                     ws.send(json.dumps(contrato))
+                else:
+                    print("⏸️ Nenhum padrão. Aguardando próximo ciclo...")
+                    time.sleep(delay)
+                    requisitar_ticks()
 
             elif data['msg_type'] == 'buy':
                 print("🎯 Entrada enviada com sucesso. Aguardando resultado...")
@@ -64,6 +72,8 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                         "Lucro": f"${profit:.2f}"
                     })
 
+                    print(f"📈 Resultado: {resultado} | Lucro: ${profit:.2f} | Saldo atual: ${saldo:.2f}")
+
                     if resultado == "WIN":
                         st.audio("win.mp3", format="audio/mp3", start_time=0)
                         perdas_consecutivas = 0
@@ -74,11 +84,13 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                     contrato_em_andamento = False
 
                     if saldo <= -stop_loss or perdas_consecutivas >= 4:
+                        print("🛑 Stop ativado. Encerrando robô.")
                         st.session_state.status = "⛔ Stop atingido"
                         ws.close()
                         return
 
                     if saldo >= take_profit:
+                        print("🎯 Meta de lucro atingida. Encerrando robô.")
                         st.session_state.status = "🎯 Meta atingida"
                         ws.close()
                         return
@@ -87,18 +99,19 @@ def iniciar_robo(token, stake, martingale, stop_loss, take_profit, delay, analis
                     requisitar_ticks()
 
     def on_error(ws, error):
-        print(f"Erro: {error}")
+        print(f"❌ Erro na conexão: {error}")
 
     def on_close(ws, close_status_code, close_msg):
         print("🔌 Conexão encerrada.")
 
     def on_open(ws):
-        print("🟢 Conectado com sucesso.")
+        print("🟢 Conectado com sucesso. Autenticando...")
         auth = {"authorize": token}
         ws.send(json.dumps(auth))
         threading.Thread(target=requisitar_ticks).start()
 
     def requisitar_ticks():
+        print("📥 Solicitando histórico de ticks...")
         ticks_msg = {
             "ticks_history": "R_100",
             "adjust_start_time": 1,

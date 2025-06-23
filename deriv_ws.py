@@ -1,82 +1,71 @@
+import websocket, json, threading, time
+from estrategias import predador_de_padroes, identificador_padrao
 
-import websocket
-import json
-import threading
-import time
-from estrategias import predador_de_padroes, identificador_de_padrao
-
-digitos_recentes = []
-coletas = []
-
-def iniciar_conexao(token, stake, martingale, fator, estrategia_func, atualizar_interface):
-    def on_message(ws, message):
-        global digitos_recentes, coletas
-
-        data = json.loads(message)
-        if "msg_type" in data and data["msg_type"] == "history":
-            ultimos = [int(c[-1]) for c in data["history"]["prices"][-10:]]
-            digitos_recentes = ultimos
-
-            if estrategia_func == identificador_de_padrao:
-                coletas.append(ultimos)
-                if len(coletas) > 3:
-                    coletas.pop(0)
-                padrao = estrategia_func(coletas)
-            else:
-                padrao = estrategia_func(digitos_recentes)
-
-            if padrao:
-                atualizar_interface("🎯 Padrão detectado! Enviando entrada Over 3...")
-                enviar_ordem(ws, stake)
-            else:
-                atualizar_interface(f"⏸️ Aguardando padrão... Últimos dígitos: {digitos_recentes}")
-
-    def enviar_ordem(ws, stake):
-        buy = {
-            "buy": 1,
-            "price": stake,
-            "parameters": {
-                "amount": stake,
-                "basis": "stake",
-                "contract_type": "DIGITOVER",
-                "barrier": "3",
-                "currency": "USD",
-                "duration": 1,
-                "duration_unit": "t",
-                "symbol": "R_100"
-            },
-            "passthrough": {"ref": "digit"},
-            "req_id": 1
-        }
-        ws.send(json.dumps(buy))
+def iniciar_conexao(token, stake, martingale, estrategia, atualizar_interface):
+    msg_log = []
+    def log(msg):
+        msg_log.append(msg)
+        if len(msg_log) > 50:
+            msg_log.pop(0)
+        atualizar_interface("\n".join(msg_log))
 
     def on_open(ws):
-        ws.send(json.dumps({"authorize": token}))
-        ws.send(json.dumps({
-            "ticks_history": "R_100",
-            "adjust_start_time": 1,
-            "count": 100,
-            "end": "latest",
-            "start": 1,
-            "style": "ticks",
-            "subscribe": 1
-        }))
+        log("✅ Conectado à Deriv!")
+        auth_req = { "authorize": token }
+        ws.send(json.dumps(auth_req))
+
+    def on_message(ws, message):
+        data = json.loads(message)
+        if 'error' in data:
+            log("❌ Erro: " + str(data['error']['message']))
+            return
+
+        if data.get("msg_type") == "authorize":
+            log("🔐 Autorizado com sucesso.")
+            ws.send(json.dumps({ "ticks_history": "R_100", "adjust_start_time": 1, "count": 10, "end": "latest", "style": "ticks", "granularity": 1 }))
+        elif data.get("msg_type") == "history":
+            ultimos_digitos = [int(str(d)[-1]) for d in data['history']['prices']]
+            log(f"📊 Dígitos recebidos: {ultimos_digitos}")
+
+            if estrategia == "Predador de Padrões":
+                decisao = predador_de_padroes(ultimos_digitos)
+            else:
+                decisao = identificador_padrao(ultimos_digitos)
+
+            if decisao:
+                log("🎯 Enviando entrada Over 3...")
+                buy_contract = {
+                    "buy": 1,
+                    "price": stake,
+                    "parameters": {
+                        "amount": stake,
+                        "basis": "stake",
+                        "contract_type": "DIGITOVER",
+                        "currency": "USD",
+                        "duration": 1,
+                        "duration_unit": "t",
+                        "symbol": "R_100",
+                        "barrier": "3"
+                    }
+                }
+                ws.send(json.dumps(buy_contract))
+            else:
+                log("⏸️ Padrão não favorável. Aguardando...")
 
     def on_error(ws, error):
-        atualizar_interface(f"❌ Erro: {error}")
+        log(f"❌ Erro: {error}")
 
     def on_close(ws, *args):
-        atualizar_interface("🔌 Conexão encerrada.")
+        log("🔌 Conexão encerrada.")
 
     def run():
         ws.run_forever()
 
-    ws = websocket.WebSocketApp(
-        "wss://ws.binaryws.com/websockets/v3?app_id=1089",
-        on_open=on_open,
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close
-    )
+    ws = websocket.WebSocketApp("wss://ws.deriv.com/websockets/v3",
+                                on_open=on_open,
+                                on_message=on_message,
+                                on_error=on_error,
+                                on_close=on_close)
 
-    threading.Thread(target=run).start()
+    thread = threading.Thread(target=run)
+    thread.start()

@@ -3,7 +3,7 @@ import websocket
 import json
 
 # COLE SEU TOKEN AQUI:
-TOKEN = "COLE_SEU_TOKEN_AQUI"
+TOKEN = "QeLHyXPtiQJtJYb"
 
 def on_open(ws):
     print("✅ Conexão aberta! Enviando token para autenticação...")

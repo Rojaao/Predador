@@ -1,39 +1,43 @@
-import websocket
-import json
-import threading
-import time
-from estrategias import predador_de_padroes, identificador_padrao
+import websocket, json, threading
+from estrategias import predador_de_padroes, identificador_de_padrao
 
-def iniciar_conexao(token, stake, estrategia, martingale, fila_logs):
-    def enviar(msg): 
-        ws.send(json.dumps(msg))
-
+def iniciar_conexao(token, estrategia, stake, martingale, fator_martingale, placeholder_log):
     def on_open(ws):
-        fila_logs.put("🔌 Conectando à Deriv...")
-        enviar({"authorize": token})
+        auth = { "authorize": token }
+        ws.send(json.dumps(auth))
+        placeholder_log.markdown("```text\n✅ Conexão estabelecida com a Deriv!\n```")
 
     def on_message(ws, message):
-        dados = json.loads(message)
-        fila_logs.put(f"📩 Mensagem recebida: {dados.get('msg_type', 'desconhecida')}")
-
-        if dados.get("msg_type") == "authorize":
-            fila_logs.put("✅ Autorizado com sucesso!")
+        data = json.loads(message)
+        if 'msg_type' in data and data['msg_type'] == 'authorize':
+            ws.send(json.dumps({
+                "ticks_history": "R_100",
+                "adjust_start_time": 1,
+                "count": 100,
+                "end": "latest",
+                "start": 1,
+                "style": "ticks",
+                "subscribe": 1
+            }))
+        if 'msg_type' in data and data['msg_type'] == 'history':
+            ultimos_digitos = [int(str(tick)[-1]) for tick in data['history']['prices'][-10:]]
             if estrategia == "Predador de Padrões":
-                threading.Thread(target=predador_de_padroes, args=(ws, stake, martingale, fila_logs)).start()
+                predador_de_padroes(ultimos_digitos, ws, stake, martingale, fator_martingale, placeholder_log)
             elif estrategia == "Identificador de Padrão":
-                threading.Thread(target=identificador_padrao, args=(ws, stake, martingale, fila_logs)).start()
+                identificador_de_padrao(ultimos_digitos, ws, stake, martingale, fator_martingale, placeholder_log)
 
     def on_error(ws, error):
-        fila_logs.put(f"❌ Erro: {error}")
+        placeholder_log.markdown(f"```text\n❌ Erro: {error}\n```")
 
     def on_close(ws, *args):
-        fila_logs.put("🔌 Conexão encerrada.")
+        placeholder_log.markdown("```text\n🔌 Conexão encerrada.\n```")
 
-    ws = websocket.WebSocketApp(
-        "wss://ws.binaryws.com/websockets/v3?app_id=1089",
-        on_open=on_open,
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close
-    )
-    threading.Thread(target=ws.run_forever).start()
+    def run():
+        ws = websocket.WebSocketApp("wss://ws.binaryws.com/websockets/v3?app_id=1089",
+                                    on_open=on_open,
+                                    on_message=on_message,
+                                    on_error=on_error,
+                                    on_close=on_close)
+        ws.run_forever()
+
+    threading.Thread(target=run).start()

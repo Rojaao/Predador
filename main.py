@@ -12,13 +12,15 @@ def main():
     stop_loss = st.number_input("🛑 Stop Loss", value=20.0)
     stop_gain = st.number_input("🎯 Stop Gain", value=50.0)
 
-    placeholder_log = st.empty()
+    status_box = st.empty()
+    log_box = st.empty()
 
     def atualizar_interface(msg):
-        placeholder_log.markdown("```text\n{}\n```".format(msg))
+        historico = log_box.text_area("📜 LOG DE EVENTOS", value=msg, height=300)
+        status_box.success("✅ Robô Rodando...")
 
     if st.button("🚀 Iniciar Robô"):
-        st.success("Robô iniciado!")
+        status_box.info("⏳ Iniciando conexão com Deriv...")
         iniciar_conexao(token, stake, martingale, fator, stop_loss, stop_gain, atualizar_interface)
 
 if __name__ == "__main__":
